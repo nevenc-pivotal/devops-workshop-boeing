@@ -4,9 +4,10 @@ buildscript {
 		springDependencyManagementVersion = '1.0.3.RELEASE'
 	}
 	repositories {
-		mavenCentral()
+		jcentral()
 	}
 	dependencies {
+	        classpath(group: 'org.jfrog.buildinfo', name: 'build-info-extractor-gradle', version: '4.+')
 		classpath("io.spring.gradle:dependency-management-plugin:${springDependencyManagementVersion}")
 		classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
 	}
@@ -32,6 +33,7 @@ processResources {
     ]
 }
 
+apply plugin: 'com.jfrog.artifactory'
 apply plugin: 'java'
 apply plugin: 'eclipse'
 apply plugin: 'idea'
@@ -63,7 +65,7 @@ repositories {
     maven {
         url "https://repo.spring.io/plugins-release"
     }
-	mavenCentral()
+	jcentral()
 }
 
 jar {
@@ -81,12 +83,37 @@ bootRepackage  {
 
 publishing {
     publications {
-        maven(MavenPublication) {
+        mavenJava(MavenPublication) {
 			groupId 'io.pivotal'
             from components.java
         }
     }
 	repositories {
         mavenLocal()
+    }
+}
+
+artifactory {
+    contextUrl = System.env.ArtifactoryInstance ?: 'http://localhost:8081/artifactory'
+    publish {
+        repository {
+            repoKey = 'libs-snapshot-local' // The Artifactory repository key to publish to
+            username = System.env.ArtifactoryUser // The publisher user name
+            password = System.env.ArtifactoryKey // The publisher password
+        }
+        defaults {
+            // Reference to Gradle publications defined in the build script.
+            // This is how we tell the Artifactory Plugin which artifacts should be
+            // published to Artifactory.
+            publications('mavenJava')
+            publishArtifacts = true
+            // Properties to be attached to the published artifacts.
+            properties = ['qa.level': 'basic', 'dev.team' : 'core']
+            // Publish generated POM files to Artifactory (true by default)
+            publishPom = true
+        }
+    }
+    resolve {
+        repoKey = 'jcenter'
     }
 }
